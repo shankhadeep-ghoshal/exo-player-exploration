@@ -1,4 +1,4 @@
-package org.shankhadeepghoshal.exoplayertutorial;
+package org.shankhadeepghoshal.exoplayertutorial.customviewcomponents;
 
 import android.view.LayoutInflater;
 import android.view.View;
@@ -7,23 +7,25 @@ import android.widget.FrameLayout;
 import android.widget.ProgressBar;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.widget.AppCompatImageButton;
 import androidx.recyclerview.widget.RecyclerView;
+
+import org.shankhadeepghoshal.exoplayertutorial.R;
+import org.shankhadeepghoshal.exoplayertutorial.model.Model;
+import org.shankhadeepghoshal.exoplayertutorial.utils.ExoPlayerManager;
 
 import java.util.List;
 
 public class RecyclerViewAdapter extends RecyclerView.Adapter<RecyclerViewAdapter.ViewHolder> {
     private List<Model> modelList;
-    private ExoPlayerManager exoPlayerManager;
 
     private final int screenHeight;
     private final int screenWidth;
 
     public RecyclerViewAdapter(final List<Model> modelList,
-                               final ExoPlayerManager exoPlayerManager,
                                final int screenHeight,
                                final int screenWidth) {
         this.modelList = modelList;
-        this.exoPlayerManager = exoPlayerManager;
         this.screenHeight = screenHeight;
         this.screenWidth = screenWidth;
     }
@@ -76,9 +78,10 @@ public class RecyclerViewAdapter extends RecyclerView.Adapter<RecyclerViewAdapte
         return modelList.size();
     }
 
-    static class ViewHolder extends RecyclerView.ViewHolder {
+    public static class ViewHolder extends RecyclerView.ViewHolder {
         private View parent;
         private FrameLayout playerContainer;
+        private AppCompatImageButton fullScreenButton;
         private ProgressBar progressBar;
         private long currentPlayPosition = 0L;
 
@@ -86,6 +89,7 @@ public class RecyclerViewAdapter extends RecyclerView.Adapter<RecyclerViewAdapte
             super(itemView);
             playerContainer = itemView.findViewById(R.id.media_container);
             progressBar = itemView.findViewById(R.id.progress_bar);
+            fullScreenButton = itemView.findViewById(R.id.btn_full_screen);
             parent = itemView;
         }
 
@@ -93,12 +97,16 @@ public class RecyclerViewAdapter extends RecyclerView.Adapter<RecyclerViewAdapte
             parent.setTag(this);
         }
 
-        FrameLayout getPlayerContainer() {
+        public FrameLayout getPlayerContainer() {
             return playerContainer;
         }
 
-        ProgressBar getProgressBar() {
+        public ProgressBar getProgressBar() {
             return this.progressBar;
+        }
+
+        public AppCompatImageButton getFullScreenButton() {
+            return fullScreenButton;
         }
 
         public long getCurrentPlayPosition() {

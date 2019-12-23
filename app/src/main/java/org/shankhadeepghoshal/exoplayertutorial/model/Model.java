@@ -1,4 +1,4 @@
-package org.shankhadeepghoshal.exoplayertutorial;
+package org.shankhadeepghoshal.exoplayertutorial.model;
 
 public class Model {
     private final String url;

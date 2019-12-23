@@ -1,4 +1,4 @@
-package org.shankhadeepghoshal.exoplayertutorial;
+package org.shankhadeepghoshal.exoplayertutorial.utils;
 
 import android.content.Context;
 import android.net.Uri;
@@ -28,6 +28,10 @@ public class ExoPlayerManager {
         this.exoPlayer.getAudioComponent().setVolume(0f);
     }
 
+    public void reCreatePlayer() {
+        this.exoPlayer = ExoPlayerFactory.newSimpleInstance(this.context);
+    }
+
     public void setUpPlayerView(PlayerView playerView) {
         this.videoSurfaceView = playerView;
 
@@ -40,6 +44,11 @@ public class ExoPlayerManager {
     public void pausePlayer() {
         this.exoPlayer.setPlayWhenReady(false);
         this.exoPlayer.getPlaybackState();
+    }
+
+    public long pausePlayerAndGetCurrentRunningTime() {
+        pausePlayer();
+        return getCurrentPlaybackTime();
     }
 
     public void seekToPosition(final int currentWindowIndex, final long toPosition) {
@@ -86,14 +95,14 @@ public class ExoPlayerManager {
     }
 
     public ExoPlayer getExoPlayer() {
-        return exoPlayer;
+        return this.exoPlayer;
     }
 
     private void playNormalVideo(final String mediaUrl,
                                  final int currentWindowIndex,
                                  final long toPosition) {
         DataSource.Factory dataSourceFactory = new DefaultDataSourceFactory(this.context,
-                Util.getUserAgent(context, "ExoPlayerTutorial"));
+                Util.getUserAgent(this.context, "ExoPlayerTutorial"));
         MediaSource mediaSource = new ProgressiveMediaSource
                 .Factory(dataSourceFactory)
                 .createMediaSource(Uri.parse(mediaUrl));
