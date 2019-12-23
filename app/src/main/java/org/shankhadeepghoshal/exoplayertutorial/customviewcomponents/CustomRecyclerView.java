@@ -22,6 +22,7 @@ import org.shankhadeepghoshal.exoplayertutorial.utils.ExoPlayerManager;
 import java.util.List;
 
 public class CustomRecyclerView extends RecyclerView {
+    private boolean isFirstTime = true;
     private boolean isVideoViewAdded;
     private boolean isVideoPlaying;
     private int videoSurfaceDefaultHeight = 0;
@@ -65,14 +66,6 @@ public class CustomRecyclerView extends RecyclerView {
     public void setExoPlayerManager(final ExoPlayerManager exoPlayerManager) {
         this.exoPlayerManager = exoPlayerManager;
         addExoPlayerListener();
-    }
-
-    public ExoPlayerManager getExoPlayerManager() {
-        return this.exoPlayerManager;
-    }
-
-    public int getCurrentExecutingPosition() {
-        return this.targetPosition;
     }
 
     private void init(Context context) {
@@ -119,7 +112,17 @@ public class CustomRecyclerView extends RecyclerView {
         addOnChildAttachStateChangeListener(new OnChildAttachStateChangeListener() {
             @Override
             public void onChildViewAttachedToWindow(@NonNull View view) {
+                if (isFirstTime && targetPosition == 0) {
+                    if (frameLayout == null) {
+                        setUpViews(0);
+                    }
+                    if (frameLayout.getChildCount() < 1) {
+                        addVideoView();
+                    }
 
+                    playExoVideo(mediaUrlList.get(0));
+                    isFirstTime = false;
+                }
             }
 
             @Override
@@ -139,12 +142,19 @@ public class CustomRecyclerView extends RecyclerView {
     private void addAnOnScrollListener() {
         addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
+            public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
+                super.onScrolled(recyclerView, dx, dy);
+            }
+
+            @Override
             public void onScrollStateChanged(@NonNull RecyclerView recyclerView, int newState) {
                 super.onScrollStateChanged(recyclerView, newState);
                 if ((newState == RecyclerView.SCROLL_STATE_IDLE ||
-                        newState == RecyclerView.SCROLL_STATE_DRAGGING) && !isVideoPlaying) {
-                    if (!recyclerView.canScrollVertically(1)) playVideo(true);
-                    else playVideo(false);
+                        newState == RecyclerView.SCROLL_STATE_DRAGGING)) {
+                    if(!isVideoPlaying) {
+                        if (!recyclerView.canScrollVertically(1)) playVideo(true);
+                        else playVideo(false);
+                    }
                 }
             }
         });
@@ -152,7 +162,8 @@ public class CustomRecyclerView extends RecyclerView {
 
     private void addVideoView() {
         if (frameLayout != null) {
-            this.frameLayout.addView(videoPlayerView);
+            this.exoPlayerManager.setUpPlayerView(this.videoPlayerView);
+            this.frameLayout.addView(this.videoPlayerView);
             this.isVideoViewAdded = true;
             this.videoPlayerView.requestFocus();
             this.videoPlayerView.setVisibility(VISIBLE);
@@ -161,6 +172,7 @@ public class CustomRecyclerView extends RecyclerView {
     }
 
     private void resetVideoView() {
+        this.videoPlayerView.setPlayer(null);
         if (isVideoViewAdded) {
             removeVideoView(this.videoPlayerView);
             this.videoPlayerView.setVisibility(GONE);
@@ -183,32 +195,7 @@ public class CustomRecyclerView extends RecyclerView {
 
     private void playVideo(boolean isEndOfList) {
         if (!isEndOfList) {
-            int startPosition = ((LinearLayoutManager) getLayoutManager())
-                    .findFirstVisibleItemPosition();
-            int endPosition = ((LinearLayoutManager) getLayoutManager())
-                    .findLastVisibleItemPosition();
-
-            // if there is more than 2 list-items on the screen, set the difference to be 1
-            if (endPosition - startPosition > 1) {
-                endPosition = startPosition + 1;
-            }
-
-            // something is wrong. return.
-            if (startPosition < 0 || endPosition < 0) {
-                return;
-            }
-
-            // if there is more than 1 list-item on the screen
-            if (startPosition != endPosition) {
-                int startPositionVideoHeight = getVisibleVideoSurfaceHeight(startPosition);
-                int endPositionVideoHeight = getVisibleVideoSurfaceHeight(endPosition);
-
-                targetPosition = startPositionVideoHeight > endPositionVideoHeight
-                        ? startPosition
-                        : endPosition;
-            } else {
-                targetPosition = startPosition;
-            }
+            setTargetPositionIfNotLastPosition();
         } else {
             targetPosition = mediaUrlList.size() - 1;
         }
@@ -216,23 +203,62 @@ public class CustomRecyclerView extends RecyclerView {
         int currentPosition = targetPosition - ((LinearLayoutManager) getLayoutManager())
                 .findFirstVisibleItemPosition();
 
+        setUpViews(currentPosition);
+        playExoVideo(this.mediaUrlList.get(this.targetPosition));
+    }
+
+    private void setUpViews(int currentPosition) {
         View child = getChildAt(currentPosition);
         if (child == null) {
             return;
         }
 
-        RecyclerViewAdapter.ViewHolder viewHolder = (RecyclerViewAdapter.ViewHolder) child.getTag();
+        setUpViewHolderElements(child);
+    }
+
+    private void setUpViewHolderElements(View view) {
+        RecyclerViewAdapter.ViewHolder viewHolder = (RecyclerViewAdapter.ViewHolder) view.getTag();
         this.viewHolder = viewHolder.itemView;
         this.frameLayout = viewHolder.getPlayerContainer();
         this.progressBar = viewHolder.getProgressBar();
         this.fullScreenButton = viewHolder.getFullScreenButton();
-        this.exoPlayerManager.setUpPlayerView(this.videoPlayerView);
-        this.exoPlayerManager.playVideo(this.mediaUrlList.get(targetPosition).getUrl(),
-                this.mediaUrlList.get(targetPosition).getCurrentWindowIndex(),
-                this.mediaUrlList.get(targetPosition).getCurrentDuration());
         this.fullScreenButton.setOnClickListener(onFullScreenButtonClickListener);
+    }
 
+    private void playExoVideo(Model dataForPlaying) {
+        this.exoPlayerManager.playVideo(dataForPlaying.getUrl(),
+                dataForPlaying.getCurrentWindowIndex(),
+                dataForPlaying.getCurrentDuration());
         this.isVideoPlaying = true;
+    }
+
+    private void setTargetPositionIfNotLastPosition() {
+        int startPosition = ((LinearLayoutManager) getLayoutManager())
+                .findFirstVisibleItemPosition();
+        int endPosition = ((LinearLayoutManager) getLayoutManager())
+                .findLastVisibleItemPosition();
+
+        // if there is more than 2 list-items on the screen, set the difference to be 1
+        if (endPosition - startPosition > 1) {
+            endPosition = startPosition + 1;
+        }
+
+        // something is wrong. return.
+        if (startPosition < 0 || endPosition < 0) {
+            return;
+        }
+
+        // if there is more than 1 list-item on the screen
+        if (startPosition != endPosition) {
+            int startPositionVideoHeight = getVisibleVideoSurfaceHeight(startPosition);
+            int endPositionVideoHeight = getVisibleVideoSurfaceHeight(endPosition);
+
+            targetPosition = startPositionVideoHeight > endPositionVideoHeight
+                    ? startPosition
+                    : endPosition;
+        } else {
+            targetPosition = startPosition;
+        }
     }
 
     private int getVisibleVideoSurfaceHeight(int playPosition) {
