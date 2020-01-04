@@ -2,6 +2,7 @@ package org.shankhadeepghoshal.exoplayertutorial.customviewcomponents;
 
 import android.content.Context;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
@@ -22,6 +23,8 @@ import org.shankhadeepghoshal.exoplayertutorial.utils.ExoPlayerManager;
 import java.util.List;
 
 public class CustomRecyclerView extends RecyclerView {
+    private static final String TAG = "CUSTOM_RV";
+
     private boolean isFirstTime = true;
     private boolean isVideoViewAdded;
     private boolean isVideoPlaying;
@@ -53,6 +56,12 @@ public class CustomRecyclerView extends RecyclerView {
     public CustomRecyclerView(@NonNull Context context, @Nullable AttributeSet attrs) {
         super(context, attrs);
         init(context);
+    }
+
+    @Override
+    public boolean fling(int velocityX, int velocityY) {
+        velocityY *= 0.45;                               // Lower is slower
+        return super.fling(velocityX, velocityY);
     }
 
     public void setMediaUrlList(List<Model> mediaUrlList) {
@@ -100,6 +109,7 @@ public class CustomRecyclerView extends RecyclerView {
 
                                 if (!isVideoViewAdded) {
                                     addVideoView();
+                                    Log.d(TAG, "onPlayerStateChanged: " + targetPosition);
                                 }
                                 break;
                             }
@@ -112,6 +122,7 @@ public class CustomRecyclerView extends RecyclerView {
         addOnChildAttachStateChangeListener(new OnChildAttachStateChangeListener() {
             @Override
             public void onChildViewAttachedToWindow(@NonNull View view) {
+                Log.d(TAG, "onChildViewAttachedToWindow: " + targetPosition);
                 if (isFirstTime && targetPosition == 0) {
                     if (frameLayout == null) {
                         setUpViews(0);
@@ -127,25 +138,32 @@ public class CustomRecyclerView extends RecyclerView {
 
             @Override
             public void onChildViewDetachedFromWindow(@NonNull View view) {
+                Log.d(TAG, "onChildViewDetachedFromWindow: " + targetPosition);
                 if (viewHolder != null && viewHolder.equals(view)) {
-                    exoPlayerManager.pausePlayer();
-                    mediaUrlList.get(targetPosition)
-                            .setCurrentDuration(exoPlayerManager.getCurrentPlaybackTime());
+                    if (isVideoPlaying) {
+                        exoPlayerManager.pausePlayer();
+                        mediaUrlList.get(targetPosition)
+                                .setCurrentDuration(exoPlayerManager.getCurrentPlaybackTime());
+                        Log.d(TAG, "onChildViewDetachedFromWindow: Player Paused at position: "
+                                        + targetPosition);
+                        mediaUrlList.get(targetPosition)
+                                .setCurrentWindowIndex(exoPlayerManager.getCurrentWindowIndex());
+                    } else if (exoPlayerManager.getExoPlayer().getPlaybackState()
+                            == Player.STATE_BUFFERING) {
+                        exoPlayerManager.getExoPlayer().stop(true);
+                        Log.d(TAG,
+                                "onChildViewDetachedFromWindow: Player was buffering at: "
+                                        + targetPosition);
+                    }
                     resetVideoView();
-                    mediaUrlList.get(targetPosition)
-                            .setCurrentWindowIndex(exoPlayerManager.getCurrentWindowIndex());
                 }
+                isVideoPlaying = false;
             }
         });
     }
 
     private void addAnOnScrollListener() {
         addOnScrollListener(new RecyclerView.OnScrollListener() {
-            @Override
-            public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
-                super.onScrolled(recyclerView, dx, dy);
-            }
-
             @Override
             public void onScrollStateChanged(@NonNull RecyclerView recyclerView, int newState) {
                 super.onScrollStateChanged(recyclerView, newState);
@@ -168,12 +186,15 @@ public class CustomRecyclerView extends RecyclerView {
             this.videoPlayerView.requestFocus();
             this.videoPlayerView.setVisibility(VISIBLE);
             this.videoPlayerView.setAlpha(1);
+            Log.d(TAG, "addVideoView: " + targetPosition);
         }
     }
 
     private void resetVideoView() {
-        this.videoPlayerView.setPlayer(null);
         if (isVideoViewAdded) {
+            this.videoPlayerView.setPlayer(null);
+            this.exoPlayerManager.getExoPlayer().stop(true);
+            Log.d(TAG, "resetVideoView: " + targetPosition);
             removeVideoView(this.videoPlayerView);
             this.videoPlayerView.setVisibility(GONE);
             this.isVideoPlaying = false;
@@ -183,6 +204,7 @@ public class CustomRecyclerView extends RecyclerView {
     private void removeVideoView(PlayerView videoPlayerView) {
         ViewGroup parent = (ViewGroup) videoPlayerView.getParent();
         if (parent == null) {
+            Log.d(TAG, "removeVideoView: parent is null at: " + targetPosition);
             return;
         }
 
@@ -190,6 +212,7 @@ public class CustomRecyclerView extends RecyclerView {
         if (index >= 0) {
             parent.removeViewAt(index);
             isVideoViewAdded = false;
+            Log.d(TAG, "removeVideoView: " + targetPosition);
         }
     }
 
@@ -230,6 +253,7 @@ public class CustomRecyclerView extends RecyclerView {
                 dataForPlaying.getCurrentWindowIndex(),
                 dataForPlaying.getCurrentDuration());
         this.isVideoPlaying = true;
+        Log.d(TAG, "playingAtPosition: " + targetPosition);
     }
 
     private void setTargetPositionIfNotLastPosition() {
