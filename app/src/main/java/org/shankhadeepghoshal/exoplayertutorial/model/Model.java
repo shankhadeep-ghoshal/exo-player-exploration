@@ -1,5 +1,7 @@
 package org.shankhadeepghoshal.exoplayertutorial.model;
 
+import androidx.annotation.Nullable;
+
 public class Model {
     private final String url;
     private long currentDuration;
@@ -30,4 +32,13 @@ public class Model {
         return url;
     }
 
+    @Override
+    public boolean equals(@Nullable Object obj) {
+        if (!(obj instanceof Model)) {
+            return false;
+        } else {
+            Model newObj = (Model) obj;
+            return newObj.getUrl().equals(this.getUrl());
+        }
+    }
 }

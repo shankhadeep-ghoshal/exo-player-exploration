@@ -1,6 +1,5 @@
 package org.shankhadeepghoshal.exoplayertutorial;
 
-import android.content.Intent;
 import android.os.Bundle;
 
 import androidx.appcompat.app.ActionBar;
@@ -13,7 +12,8 @@ import org.shankhadeepghoshal.exoplayertutorial.views.VideoFullScreenFragment;
 import org.shankhadeepghoshal.exoplayertutorial.views.VideoListFragment;
 
 public class MainActivity extends AppCompatActivity {
-    private FullScreenCommsViewModel viewModel;
+    private FullScreenCommsViewModel viewModelListToFullScreen;
+    private FullScreenCommsViewModel viewModelFullScreenToList;
     private ExoPlayerManager exoPlayerManager;
 
     @Override
@@ -30,25 +30,26 @@ public class MainActivity extends AppCompatActivity {
         VideoListFragment listFragment = VideoListFragment.newInstance();
         getSupportFragmentManager()
                 .beginTransaction()
-                .replace(R.id.main_activity_layout_space, listFragment, null )
+                .replace(R.id.main_activity_layout_space, listFragment, VideoListFragment.TAG)
                 .commit();
 
-        this.viewModel = ViewModelProviders.of(this).get(FullScreenCommsViewModel.class);
+        this.viewModelListToFullScreen = ViewModelProviders
+                .of(this)
+                .get(FullScreenCommsViewModel.class);
+        this.viewModelFullScreenToList = ViewModelProviders
+                .of(this)
+                .get(FullScreenCommsViewModel.class);
     }
 
     @Override
     protected void onStart() {
         super.onStart();
-        this.viewModel.getPlaybackLiveData()
-                .observe(this,
-                        this::switchToFullScreenFragment);
-    }
-
-    @Override
-    public void onBackPressed() {
-        if (getSupportFragmentManager().getBackStackEntryCount() > 0) {
-            getSupportFragmentManager().popBackStack();
-        }
+        this.viewModelListToFullScreen
+                .getPlaybackLiveData()
+                .observe(this, this::switchToFullScreenFragment);
+        this.viewModelFullScreenToList
+                .getFromFullScreenToListFragmentDataTransfer()
+                .observe(this, this::switchToListFragment);
     }
 
     @Override
@@ -61,18 +62,41 @@ public class MainActivity extends AppCompatActivity {
         return this.exoPlayerManager;
     }
 
-    private void switchToFullScreenFragment(final TupleData<String, Long> stringLongTupleData) {
+    private void switchToFullScreenFragment(final TupleData<String, TupleData<Long, Integer>>
+                                                    stringLongTupleData) {
         Bundle args = new Bundle();
         args.putString("mediaUrl", stringLongTupleData.getDataField1());
-        args.putLong("playbackTime", stringLongTupleData.getDatafield2());
+        args.putLong("playbackTime", stringLongTupleData.getDataField2().getDataField1());
+        args.putInt("windowIndex", stringLongTupleData.getDataField2().getDataField2());
 
         VideoFullScreenFragment videoFrag = new VideoFullScreenFragment();
         videoFrag.setArguments(args);
 
         getSupportFragmentManager()
                 .beginTransaction()
-                .replace(R.id.main_activity_layout_space, videoFrag, null)
+                .replace(R.id.main_activity_layout_space, videoFrag, VideoFullScreenFragment.TAG)
                 .addToBackStack(null)
+                .commit();
+    }
+
+    private void switchToListFragment(final TupleData<String, TupleData<Long, Integer>>
+                                              stringLongTupleData) {
+        String mediaUrl = stringLongTupleData.getDataField1();
+        long currentPlaybackTime = stringLongTupleData.getDataField2().getDataField1();
+        int currentWindow = stringLongTupleData.getDataField2().getDataField2();
+
+        VideoListFragment fragment = (VideoListFragment) getSupportFragmentManager()
+                .findFragmentByTag(VideoListFragment.TAG);
+        Bundle playbackDataArgs = new Bundle();
+        playbackDataArgs.putBoolean("isBack", true);
+        playbackDataArgs.putString("backMediaUrl", mediaUrl);
+        playbackDataArgs.putInt("backCurrentWindow", currentWindow);
+        playbackDataArgs.putLong("backPlaybackTime", currentPlaybackTime);
+        fragment.setArguments(playbackDataArgs);
+
+        getSupportFragmentManager()
+                .beginTransaction()
+                .replace(R.id.main_activity_layout_space, fragment, VideoListFragment.TAG)
                 .commit();
     }
 }
