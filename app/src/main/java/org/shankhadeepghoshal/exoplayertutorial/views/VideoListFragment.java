@@ -3,7 +3,6 @@ package org.shankhadeepghoshal.exoplayertutorial.views;
 
 import android.os.Bundle;
 
-import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProviders;
 import androidx.recyclerview.widget.DividerItemDecoration;
@@ -28,9 +27,10 @@ import java.util.List;
 public class VideoListFragment
         extends Fragment
         implements CustomRecyclerView.FullScreenButtonListener{
-
+    public static final String TAG = "VideoListFragment";
     private static final String MP4_MEDIA_URL_1 = "https://www.sample-videos.com/video123/mp4/720/big_buck_bunny_720p_30mb.mp4";
-    private static final String MP4_MEDIA_URL_2 = "http://techslides.com/demos/sample-videos/small.mp4";
+    private static final String MP4_MEDIA_URL_2 =
+            "http://techslides.com/demos/sample-videos/small.mp4";
     private static final String MP4_MEDIA_URL_3 = "https://commondatastorage.googleapis" +
             ".com/gtv-videos-bucket/sample/VolkswagenGTIReview.mp4";
     private static final String MP4_MEDIA_URL_4 = "https://commondatastorage.googleapis" +
@@ -41,9 +41,6 @@ public class VideoListFragment
     private static final String DASH_URL_2 = "rdmedia.bbc.co.uk/dash/ondemand/bbb/2" +
             "/client_manifest-common_init.mpd";
     private static final String DASH_URL_3 = "https://dash.akamaized.net/dash264/TestCasesIOP33/adapatationSetSwitching/5/manifest.mpd";
-
-    private static final String[] URL_LIST = new String[]
-            {MP4_MEDIA_URL_1, DASH_URL_1, MP4_MEDIA_URL_2};
 
     private List<Model> modelList;
     {
@@ -58,13 +55,6 @@ public class VideoListFragment
 
     private FullScreenCommsViewModel viewModel;
     private CustomRecyclerView recyclerView;
-
-    private int screenHeight;
-    private int screenWidth;
-
-    private String currentPlayingUrl;
-    private long currentPlaybackTime;
-    private int currentPosition;
 
     public VideoListFragment() {
         // Required empty public constructor
@@ -90,56 +80,40 @@ public class VideoListFragment
 
         DisplayMetrics displayMetrics = new DisplayMetrics();
         requireActivity().getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
-        this.screenHeight = displayMetrics.heightPixels;
-        this.screenWidth = displayMetrics.widthPixels;
 
         setUpComponents();
-
-/*
-        if (savedInstanceState != null) {
-            handleSavedStuff(savedInstanceState);
-        }
-*/
+        handleReturnFromFullScreenFragment();
 
         return view;
     }
 
-/*
-    private void handleSavedStuff(Bundle savedInstanceState) {
-        int currentPosition = savedInstanceState.getInt("currentPosition");
-        int currentPlaybackTime = savedInstanceState.getInt("playPosition");
-
-        this.recyclerView.scrollToPosition(currentPosition);
-        ((RecyclerViewAdapter.ViewHolder)this.recyclerView
-                .findViewHolderForLayoutPosition(currentPosition))
-                .setCurrentPlayPosition(currentPlaybackTime);
-    }
-*/
-
     @Override
-    public void onFullScreenButtonClick(String mediaUrl, long currentPlaybackTime) {
-        TupleData<String, Long> td = new TupleData<>(mediaUrl, currentPlaybackTime);
+    public void onFullScreenButtonClick(String mediaUrl,
+                                        long currentPlaybackTime,
+                                        int currentWindowIndex) {
+        TupleData<String, TupleData<Long, Integer>> td = new TupleData<>(mediaUrl,
+                new TupleData<>(currentPlaybackTime, currentWindowIndex));
         viewModel.setPlaybackLiveData(td);
     }
 
-/*
-    @Override
-    public void onSaveInstanceState(@NonNull Bundle outState) {
-        super.onSaveInstanceState(outState);
-        long currentExecutionTimeOfPlayingVideo = this.recyclerView
-                .getExoPlayerManager()
-                .pausePlayerAndGetCurrentRunningTime();
+    private void scrollToProvidedLocation(String mediaUrl,
+                                          long currentPlaybackTime,
+                                          int currentWindow) {
+        List<Model> modelList = ((RecyclerViewAdapter) recyclerView.getAdapter()).getModelList();
 
-        outState.putInt("currentPosition", this.currentPosition);
-        outState.putLong("playPosition", this.currentPlaybackTime);
+        for (int i = 0; i < modelList.size(); i++) {
+            Model model = modelList.get(i);
+            if (model.getUrl().equals(mediaUrl)) {
+                recyclerView.handleNavigationFromFullScreen(currentPlaybackTime, currentWindow, i);
+                break;
+            }
+        }
     }
-*/
 
     private void setUpComponents() {
         recyclerView.setMediaUrlList(modelList);
-        recyclerView.setAdapter(new RecyclerViewAdapter(modelList,
-                screenHeight,
-                screenWidth));
+        recyclerView.setAdapter(new RecyclerViewAdapter(modelList
+        ));
         recyclerView.setLayoutManager(new LinearLayoutManager(requireActivity(),
                 LinearLayoutManager.VERTICAL,
                 false));
@@ -147,5 +121,18 @@ public class VideoListFragment
                 DividerItemDecoration.VERTICAL));
         recyclerView.setExoPlayerManager(((MainActivity)requireActivity()).getExoPlayerManager());
         recyclerView.setFullScreenButtonClickListener(this);
+    }
+
+    private void handleReturnFromFullScreenFragment() {
+        Bundle returnData = getArguments();
+        if (returnData != null) {
+            boolean isBack = returnData.getBoolean("isBack", false);
+            if (isBack) {
+                String playbackUrl = returnData.getString("backMediaUrl");
+                long playbackTime = returnData.getLong("backPlaybackTime");
+                int currentWindow = returnData.getInt("backCurrentWindow");
+                scrollToProvidedLocation(playbackUrl, playbackTime, currentWindow);
+            }
+        }
     }
 }

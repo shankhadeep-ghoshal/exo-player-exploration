@@ -26,27 +26,27 @@ public class CustomRecyclerView extends RecyclerView {
     private static final String TAG = "CUSTOM_RV";
 
     private boolean isFirstTime = true;
+    private boolean isBackFromFullScreen = false;
     private boolean isVideoViewAdded;
     private boolean isVideoPlaying;
-    private int videoSurfaceDefaultHeight = 0;
-    private int screenDefaultHeight = 0;
 
     private List<Model> mediaUrlList;
     private FullScreenButtonListener fullScreenButtonListener;
     private ExoPlayerManager exoPlayerManager;
 
-    private Context context;
     private View viewHolder;
     private PlayerView videoPlayerView;
     private FrameLayout frameLayout;
     private ProgressBar progressBar;
-    private AppCompatImageButton fullScreenButton;
     private int targetPosition;
 
-    private final OnClickListener onFullScreenButtonClickListener = v ->
-            fullScreenButtonListener
-                    .onFullScreenButtonClick(mediaUrlList.get(targetPosition).getUrl(),
-                    this.exoPlayerManager.pausePlayerAndGetCurrentRunningTime());
+    private final OnClickListener onFullScreenButtonClickListener = v -> {
+        isFirstTime = true;
+        fullScreenButtonListener
+                .onFullScreenButtonClick(mediaUrlList.get(targetPosition).getUrl(),
+                        this.exoPlayerManager.pausePlayerAndGetCurrentRunningTime(),
+                        this.exoPlayerManager.getCurrentWindowIndex());
+    };
 
     public CustomRecyclerView(@NonNull Context context) {
         super(context);
@@ -64,11 +64,22 @@ public class CustomRecyclerView extends RecyclerView {
         return super.fling(velocityX, velocityY);
     }
 
+    public void handleNavigationFromFullScreen(long currentPlaybackTime,
+                                               int currentWindow,
+                                               int targetPosition) {
+        this.isBackFromFullScreen = true;
+        mediaUrlList.get(targetPosition).setCurrentWindowIndex(currentWindow);
+        mediaUrlList.get(targetPosition).setCurrentDuration(currentPlaybackTime);
+        this.targetPosition = targetPosition;
+        scrollToPosition(targetPosition);
+    }
+
     public void setMediaUrlList(List<Model> mediaUrlList) {
         this.mediaUrlList = mediaUrlList;
     }
 
-    public void setFullScreenButtonClickListener(FullScreenButtonListener fullScreenButtonListener) {
+    public void setFullScreenButtonClickListener(FullScreenButtonListener
+                                                         fullScreenButtonListener) {
         this.fullScreenButtonListener = fullScreenButtonListener;
     }
 
@@ -78,7 +89,6 @@ public class CustomRecyclerView extends RecyclerView {
     }
 
     private void init(Context context) {
-        this.context = context;
         this.videoPlayerView = new PlayerView(context);
 
         addAnOnScrollListener();
@@ -123,7 +133,7 @@ public class CustomRecyclerView extends RecyclerView {
             @Override
             public void onChildViewAttachedToWindow(@NonNull View view) {
                 Log.d(TAG, "onChildViewAttachedToWindow: " + targetPosition);
-                if (isFirstTime && targetPosition == 0) {
+                if ((isFirstTime && targetPosition == 0) || isBackFromFullScreen) {
                     if (frameLayout == null) {
                         setUpViews(0);
                     }
@@ -131,8 +141,9 @@ public class CustomRecyclerView extends RecyclerView {
                         addVideoView();
                     }
 
-                    playExoVideo(mediaUrlList.get(0));
-                    isFirstTime = false;
+                    playExoVideo(mediaUrlList.get(targetPosition));
+                    isFirstTime = !isFirstTime;
+                    isBackFromFullScreen = !isBackFromFullScreen;
                 }
             }
 
@@ -144,7 +155,8 @@ public class CustomRecyclerView extends RecyclerView {
                         exoPlayerManager.pausePlayer();
                         mediaUrlList.get(targetPosition)
                                 .setCurrentDuration(exoPlayerManager.getCurrentPlaybackTime());
-                        Log.d(TAG, "onChildViewDetachedFromWindow: Player Paused at position: "
+                        Log.d(TAG, "onChildViewDetachedFromWindow: " +
+                                "Player Paused at position: "
                                         + targetPosition);
                         mediaUrlList.get(targetPosition)
                                 .setCurrentWindowIndex(exoPlayerManager.getCurrentWindowIndex());
@@ -244,8 +256,8 @@ public class CustomRecyclerView extends RecyclerView {
         this.viewHolder = viewHolder.itemView;
         this.frameLayout = viewHolder.getPlayerContainer();
         this.progressBar = viewHolder.getProgressBar();
-        this.fullScreenButton = viewHolder.getFullScreenButton();
-        this.fullScreenButton.setOnClickListener(onFullScreenButtonClickListener);
+        AppCompatImageButton fullScreenButton = viewHolder.getFullScreenButton();
+        fullScreenButton.setOnClickListener(onFullScreenButtonClickListener);
     }
 
     private void playExoVideo(Model dataForPlaying) {
@@ -298,13 +310,17 @@ public class CustomRecyclerView extends RecyclerView {
         child.getLocationInWindow(location);
 
         if (location[1] < 0) {
+            int videoSurfaceDefaultHeight = 0;
             return location[1] + videoSurfaceDefaultHeight;
         } else {
+            int screenDefaultHeight = 0;
             return screenDefaultHeight - location[1];
         }
     }
 
     public interface FullScreenButtonListener {
-        void onFullScreenButtonClick(String mediaUrl, long currentPlaybackTime);
+        void onFullScreenButtonClick(String mediaUrl,
+                                     long currentPlaybackTime,
+                                     int currentWindowIndex);
     }
 }

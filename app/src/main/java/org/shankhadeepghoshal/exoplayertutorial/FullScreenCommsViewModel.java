@@ -7,14 +7,27 @@ import androidx.lifecycle.ViewModel;
 import org.shankhadeepghoshal.exoplayertutorial.utils.TupleData;
 
 public class FullScreenCommsViewModel extends ViewModel {
-    private final MutableLiveData<TupleData<String, Long>> playbackLiveData
+    private final MutableLiveData<TupleData<String, TupleData<Long, Integer>>> playbackLiveData
             = new MutableLiveData<>();
 
-    public void setPlaybackLiveData(TupleData<String, Long> playbackLiveData) {
+    private final MutableLiveData<TupleData<String, TupleData<Long, Integer>>>
+            fromFullScreenToListFragmentDataTransfer = new MutableLiveData<>();
+
+    public void setPlaybackLiveData(TupleData<String, TupleData<Long, Integer>> playbackLiveData) {
         this.playbackLiveData.setValue(playbackLiveData);
     }
 
-    public LiveData<TupleData<String, Long>> getPlaybackLiveData() {
+    public void setFromFullScreenToListFragmentDataTransfer(TupleData<String,
+            TupleData<Long, Integer>> data) {
+        this.fromFullScreenToListFragmentDataTransfer.setValue(data);
+    }
+
+    public LiveData<TupleData<String, TupleData<Long, Integer>>> getPlaybackLiveData() {
         return this.playbackLiveData;
+    }
+
+    public MutableLiveData<TupleData<String, TupleData<Long, Integer>>>
+    getFromFullScreenToListFragmentDataTransfer() {
+        return fromFullScreenToListFragmentDataTransfer;
     }
 }
